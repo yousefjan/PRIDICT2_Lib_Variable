@@ -4,7 +4,6 @@ import os
 import time
 import pandas as pd
 
-
 U6_homology_arm = "ttatatatcttgtggaaaggacgaaacacc"
 pe_scaffold = "gtttcagagctatgctggaaacagcatagcaagttgaaataaggctagtccgttatcaacttgaaaaagtggcaccgagtcggtgc"
 tevopreQ1 = "CGCGGTTCTATCTAGTTACGCGTTAAACCAACTAGAA"

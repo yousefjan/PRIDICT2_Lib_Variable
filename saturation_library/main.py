@@ -3,7 +3,7 @@ import numpy as np
 import pandas as pd
 import random
 import matplotlib.pyplot as plt
-# from reportlab.pdfgen import canvas
+from reportlab.pdfgen import canvas
 
 SF = 'GTTTCAGAGCTATGCTGGAAACAGCATAGCAAGTTGAAATAAGGCTAGTCCGTTATCAACTTGAAAAAGTGGCACCGAGTCGGTGC'
 fivep_homo = 'ATCTTGTGGAAAGGACGAGGTACCG'
@@ -176,10 +176,6 @@ def _get_control_rtt(seq, sseq, rtt, frame, strand, syn, splice) -> str:
 
     else: # strand=="-"
 
-        # if syn and strand=='-': # Get seqs_r handles rc of seq
-        #     seq = _r(_c(seq))
-        #     rtt = _r(_c(rtt))
-
         idx = (seq.index(rtt) + 1) % 3
         idx = 1 if idx == 0 else 0 if idx == 1 else 2
         rtt_start = idx + frame
@@ -188,7 +184,7 @@ def _get_control_rtt(seq, sseq, rtt, frame, strand, syn, splice) -> str:
             rtt_start = 1
 
         if syn:
-            rtt = _get_synony_rtt(seq, sseq, rtt, frame+1, strand, splice)[0] ####
+            rtt = _get_synony_rtt(seq, sseq, rtt, frame+1, strand, splice)[0] # TODO: Change to get_preserving_rtt
 
         codons_rtt = split_into_codons(rtt, rtt_start)
         codons_rtt[-4 if len(codons_rtt[-1]) < 3 else -3] = 'TGA'
@@ -394,17 +390,17 @@ def _make_df_freq(seq: str, rtts: list) -> pd.DataFrame:
 
 # For getting reference sequence
 # TODO: Combine these functions
-def highlight_differences(seq, subseq, start, strand):
+def highlight_differences(seq, rtt, start, strand):
     diff = []
     diff.append(seq[:start])
-    if len(subseq) == 25:
-        for i in range(len(subseq)):
-            if seq[start + i] != subseq[i]:
-                diff.append(subseq[i].lower())
+    if len(rtt) == 25:
+        for i in range(len(rtt)):
+            if seq[start + i] != rtt[i]:
+                diff.append(rtt[i].lower())
             else:
                 diff.append(seq[start + i])
 
-        diff.append(seq[start+len(subseq):])
+        diff.append(seq[start+len(rtt):])
         return ''.join(diff)
     else:
         if strand == '+':
@@ -413,14 +409,14 @@ def highlight_differences(seq, subseq, start, strand):
             return seq[:start+9] + '-' + seq[start+10:]
 def process_row(row, seq, wt_rtts):
     if row['Strand'] == '+':
-        subseq = _r(_c((row['RTTs'])))
+        rtt = _r(_c((row['RTTs'])))
         wt_rtt = _r(_c(wt_rtts[row['PAM No.']-1]))
     else:
-        subseq = row['RTTs']
+        rtt = row['RTTs']
         wt_rtt = wt_rtts[row['PAM No.']-1]
 
     start = seq.find(wt_rtt)
-    return highlight_differences(seq, subseq, start, row['Strand'])
+    return highlight_differences(seq, rtt, start, row['Strand'])
 
 
 def run_cloning(seq: str, sseq: str, frame, splice) -> tuple:
@@ -549,75 +545,75 @@ def run_freq_plot(seq: str, sseq: str) -> None:
     plt.savefig('freq_plot.pdf', bbox_inches='tight')
 
 # TODO: This is incorrect, (-) PAMs not all accounted for
-# def run_figure(seq, sseq):
-#     """Function to run in web to generate frequency figure
-#     """
-#     seq, sseq = seq.upper(), sseq.upper()
-#     seq = trim_string(seq, sseq)
-#     cseq = _c(seq)
+def run_figure(seq, sseq):
+    """Function to run in web to generate frequency figure
+    """
+    seq, sseq = seq.upper(), sseq.upper()
+    seq = trim_string(seq, sseq)
+    cseq = _c(seq)
 
-#     complement = {'A': 'T', 'T': 'A', 'C': 'G', 'G': 'C'}
+    complement = {'A': 'T', 'T': 'A', 'C': 'G', 'G': 'C'}
 
-#     max_lines = (len(seq) - 1) // 50 + 1
-#     width, height = 50 + len(seq) * 10, 100 + max_lines * 20
+    max_lines = (len(seq) - 1) // 50 + 1
+    width, height = 50 + len(seq) * 10, 100 + max_lines * 20
 
-#     pams = ['AGG', 'TGG', 'CGG', 'GGG']
+    pams = ['AGG', 'TGG', 'CGG', 'GGG']
 
-#     c = canvas.Canvas('pam_figure.pdf', pagesize=(width, height))
+    c = canvas.Canvas('pam_figure.pdf', pagesize=(width, height))
 
-#     x, y = 20, height - 50
-#     df = _make_df_freq(seq, _find_rtt(seq, sseq, None))
-#     positions = df['Position'].unique()
+    x, y = 20, height - 50
+    df = _make_df_freq(seq, _find_rtt(seq, sseq, None))
+    positions = df['Position'].unique()
 
-#     for i, position in enumerate(positions):
-#         freq = df.loc[df['Position'] == position, 'Frequency']
-#         freq_str = freq.to_string(index=False)
-#         c.drawString(20 + i * 10, y + 24, freq_str)
+    for i, position in enumerate(positions):
+        freq = df.loc[df['Position'] == position, 'Frequency']
+        freq_str = freq.to_string(index=False)
+        c.drawString(20 + i * 10, y + 24, freq_str)
 
-#     sseq_start = seq.index(sseq)
-#     sseq_end = sseq_start + len(sseq)
+    sseq_start = seq.index(sseq)
+    sseq_end = sseq_start + len(sseq)
 
-#     # (+) strand boxes
-#     count = 1
-#     for i, base in enumerate(seq):
-#         complement_base = complement[base]
-#         c.drawString(x, y, base)
-#         c.drawString(x, y - 12, complement_base)
-#         x += 10
+    # (+) strand boxes
+    count = 1
+    for i, base in enumerate(seq):
+        complement_base = complement[base]
+        c.drawString(x, y, base)
+        c.drawString(x, y - 12, complement_base)
+        x += 10
 
-#         counting = False
-#         for pam in pams:
-#             if seq[
-#                i:i + 3] == pam and sseq_start - 21 <= i <= sseq_end + 2 and i >= 19 and len(
-#                 seq[i:None]) >= 22:
-#                 c.rect(20 + i * 10, y - 2, 30, 12)
-#                 c.drawString(20 + i * 10, y + 12, str(count))
-#                 counting = True
+        counting = False
+        for pam in pams:
+            if seq[
+               i:i + 3] == pam and sseq_start - 21 <= i <= sseq_end + 2 and i >= 19 and len(
+                seq[i:None]) >= 22:
+                c.rect(20 + i * 10, y - 2, 30, 12)
+                c.drawString(20 + i * 10, y + 12, str(count))
+                counting = True
 
-#         if counting is True:
-#             count += 1
+        if counting is True:
+            count += 1
 
-#     # (-) strand boxes
-#     for i in range(len(cseq), -1, -1):
-#         counting = False
-#         for pam in pams:
-#             if cseq[i - 3:i] == _r(
-#                     pam) and sseq_start - 2 <= i <= sseq_end + 21 and i <= len(
-#                 seq) - 19 and len(seq[None:i]) >= 22:
-#                 c.rect(i * 10 - 10, y - 14, 30, 12)
-#                 c.drawString(i * 10 - 10, y - 24, str(count))
-#                 counting = True
+    # (-) strand boxes
+    for i in range(len(cseq), -1, -1):
+        counting = False
+        for pam in pams:
+            if cseq[i - 3:i] == _r(
+                    pam) and sseq_start - 2 <= i <= sseq_end + 21 and i <= len(
+                seq) - 19 and len(seq[None:i]) >= 22:
+                c.rect(i * 10 - 10, y - 14, 30, 12)
+                c.drawString(i * 10 - 10, y - 24, str(count))
+                counting = True
 
-#         if counting is True:
-#             count += 1
+        if counting is True:
+            count += 1
 
-#     line_x_start = 20 + sseq_start * 10
-#     line_x_end = 20 + sseq_end * 10
-#     line_y = y - 30
-#     c.line(line_x_start, line_y, line_x_end, line_y)
-#     c.drawString((line_x_start + line_x_end) / 2, y - 45, 'Saturation Area')
+    line_x_start = 20 + sseq_start * 10
+    line_x_end = 20 + sseq_end * 10
+    line_y = y - 30
+    c.line(line_x_start, line_y, line_x_end, line_y)
+    c.drawString((line_x_start + line_x_end) / 2, y - 45, 'Saturation Area')
 
-#     c.save()
+    c.save()
 
 
 def split_into_codons(seq: str, start_frame: int) -> list:
@@ -657,7 +653,7 @@ def get_edit_position(str1, str2, j=0):
 
 #TODO: Do this in a non retarded way
 def _get_synony_rtt(seq: str, sseq: str, rtt: str, frame: int, strand: str, splice: list) -> list:
-    """Returns list of RTTs installing silent mutations based off <rtt>. Avoids splice sites.
+    """Returns list of RTTs installing silent mutations based off WT <rtt>. Avoids splice sites.
     """
     
     def find_synony_codon(codon: str, left_restrict=0, right_restrict=0, reverse_order=0):
@@ -721,13 +717,13 @@ def _get_synony_rtt(seq: str, sseq: str, rtt: str, frame: int, strand: str, spli
         # PAM is +3, 5'-NNN N(NG G)NN-3', 'G' in G)NN codon never destroyed
         if len(codons_rtt[0])==2: 
             if codons_rtt[1] != pam_snv[codons_rtt[1]]:
-                new_rtt = rtt[:20] + _r(_c(pam_snv[codons_rtt[1]])) + rtt[23:]
+                new_rtt = rtt[:-5] + _r(_c(pam_snv[codons_rtt[1]])) + rtt[-2:]
                 synony_rtts.append(new_rtt)
 
             # check for synonymous mutations in upstream bases
             codon = find_synony_codon(codons_rtt[1], right_restrict=1)
             if codon is not None:
-                new_rtt = rtt[:20] + _r(_c(codon)) + rtt[23:]
+                new_rtt = rtt[:-5] + _r(_c(codon)) + rtt[-2:]
                 synony_rtts.append(new_rtt)
 
             codon = find_synony_codon(upstream[1], left_restrict=2)
@@ -740,7 +736,7 @@ def _get_synony_rtt(seq: str, sseq: str, rtt: str, frame: int, strand: str, spli
             rtt_ = _overlap(seq, sseq, _r(_c(rtt))) # revese complement of overlap
             for _ in range(len(synony_rtts)):
                 synony = _r(_c(synony_rtts[count]))
-                if seq.index(_r(_c(rtt))) + 25 > (seq.index(sseq) + len(sseq)):  # RTT hangs over end of sseq
+                if seq.index(_r(_c(rtt))) + len(rtt) > (seq.index(sseq) + len(sseq)):  # RTT hangs over end of sseq
                     index_rtt_in_sseq = len(rtt_)
                     synony_overlap = synony[:index_rtt_in_sseq]
                     pos = get_edit_position(sseq, synony_overlap, sseq.rfind(rtt_))
@@ -759,7 +755,7 @@ def _get_synony_rtt(seq: str, sseq: str, rtt: str, frame: int, strand: str, spli
             while len(synony_rtts) < 4:
                 codon = find_synony_codon(codons_rtt[2+i], reverse_order=1)
                 if codon is not None:
-                    new_rtt = rtt[:17-3*i] + _r(_c(codon)) + rtt[20-3*i:]
+                    new_rtt = rtt[:-8-3*i] + _r(_c(codon)) + rtt[-5-3*i:]
                     synony_rtts.append(new_rtt)
                 i += 1
             
@@ -768,7 +764,7 @@ def _get_synony_rtt(seq: str, sseq: str, rtt: str, frame: int, strand: str, spli
             rtt_ = _overlap(seq, sseq, _r(_c(rtt))) # revese complement of overlap
             for _ in range(len(synony_rtts)):
                 synony = _r(_c(synony_rtts[count]))
-                if seq.index(_r(_c(rtt))) + 25 > (seq.index(sseq) + len(sseq)):  # RTT hangs over end of sseq
+                if seq.index(_r(_c(rtt))) + len(rtt) > (seq.index(sseq) + len(sseq)):  # RTT hangs over end of sseq
                     index_rtt_in_sseq = len(rtt_)
                     synony_overlap = synony[:index_rtt_in_sseq]
                     pos = get_edit_position(sseq, synony_overlap, sseq.rfind(rtt_))
@@ -788,36 +784,36 @@ def _get_synony_rtt(seq: str, sseq: str, rtt: str, frame: int, strand: str, spli
         # if PAM is +1 5'-NNN (NGG)-3'
         elif len(codons_rtt[0])==3:
             if codons_rtt[1] == 'AGG':
-                new_rtt = rtt[:19] + _r(_c('AGA')) + rtt[22:]
+                new_rtt = rtt[:-6] + _r(_c('AGA')) + rtt[-3:]
                 synony_rtts.append(new_rtt)
             elif codons_rtt[1] == 'CGG':
-                new_rtt = rtt[:19] + _r(_c('CGT')) + rtt[22:]
+                new_rtt = rtt[:-6] + _r(_c('AGA')) + rtt[-3:]
                 synony_rtts.append(new_rtt)
             elif codons_rtt[1] == 'GGG':
-                new_rtt = rtt[:19] + _r(_c('GGC')) + rtt[22:]
+                new_rtt = rtt[:-6] + _r(_c('AGA')) + rtt[-3:]
                 synony_rtts.append(new_rtt)
 
             # check for synonymous mutations in upstream bases - change NNN in NNN TGG
             codon = find_synony_codon(codons_rtt[0])
             if codon is not None:
-                new_rtt = rtt[:22] + _r(_c(codon))
+                new_rtt = rtt[:-3] + _r(_c(codon))
                 synony_rtts.append(new_rtt)
 
             codon = find_synony_codon(codons_rtt[0], left_restrict=2)
             if codon is not None:
-                new_rtt = rtt[:22] + _r(_c(codon))
+                new_rtt = rtt[:-3] + _r(_c(codon))
                 if new_rtt not in synony_rtts:
                     synony_rtts.append(new_rtt)
 
             codon = find_synony_codon(codons_rtt[0], left_restrict=1)
             if codon is not None:
-                new_rtt = rtt[:22] + _r(_c(codon))
+                new_rtt = rtt[:-3] + _r(_c(codon))
                 if new_rtt not in synony_rtts:
                     synony_rtts.append(new_rtt)
 
             codon = find_synony_codon(codons_rtt[0])
             if codon is not None:
-                new_rtt = rtt[:22] + _r(_c(codon))
+                new_rtt = rtt[:-3] + _r(_c(codon))
                 if new_rtt not in synony_rtts:
                     synony_rtts.append(new_rtt)
 
@@ -826,7 +822,7 @@ def _get_synony_rtt(seq: str, sseq: str, rtt: str, frame: int, strand: str, spli
             rtt_ = _overlap(seq, sseq, _r(_c(rtt))) # revese complement of overlap
             for _ in range(len(synony_rtts)):
                 synony = _r(_c(synony_rtts[count]))
-                if seq.index(_r(_c(rtt))) + 25 > (seq.index(sseq) + len(sseq)):  # RTT hangs over end of sseq
+                if seq.index(_r(_c(rtt))) + len(rtt) > (seq.index(sseq) + len(sseq)):  # RTT hangs over end of sseq
                     index_rtt_in_sseq = len(rtt_)
                     synony_overlap = synony[:index_rtt_in_sseq]
                     pos = get_edit_position(sseq, synony_overlap, sseq.rfind(rtt_))
@@ -845,7 +841,7 @@ def _get_synony_rtt(seq: str, sseq: str, rtt: str, frame: int, strand: str, spli
             while len(synony_rtts) < 4:
                 codon = find_synony_codon(codons_rtt[2+i], reverse_order=1)
                 if codon is not None:
-                    new_rtt = rtt[:16-3*i] + _r(_c(codon)) + rtt[19-3*i:]
+                    new_rtt = rtt[:-9-3*i] + _r(_c(codon)) + rtt[-6-3*i:]
                     if new_rtt not in synony_rtts:
                         synony_rtts.append(new_rtt)
                 i += 1
@@ -855,7 +851,7 @@ def _get_synony_rtt(seq: str, sseq: str, rtt: str, frame: int, strand: str, spli
             rtt_ = _overlap(seq, sseq, _r(_c(rtt))) # revese complement of overlap
             for _ in range(len(synony_rtts)):
                 synony = _r(_c(synony_rtts[count]))
-                if seq.index(_r(_c(rtt))) + 25 > (seq.index(sseq) + len(sseq)):  # RTT hangs over end of sseq
+                if seq.index(_r(_c(rtt))) + len(rtt) > (seq.index(sseq) + len(sseq)):  # RTT hangs over end of sseq
                     index_rtt_in_sseq = len(rtt_)
                     synony_overlap = synony[:index_rtt_in_sseq]
                     pos = get_edit_position(sseq, synony_overlap, sseq.rfind(rtt_))
@@ -875,18 +871,18 @@ def _get_synony_rtt(seq: str, sseq: str, rtt: str, frame: int, strand: str, spli
         else:
             codon = find_synony_codon(upstream[1], left_restrict=2)
             if codon is not None:
-                new_rtt = rtt[:21] + _r(_c(codon)) + rtt[24:]
+                new_rtt = rtt[:-4] + _r(_c(codon)) + rtt[-1]
                 synony_rtts.append(new_rtt)
 
             codon = find_synony_codon(upstream[1], left_restrict=1)
             if codon is not None:
-                new_rtt = rtt[:21] + _r(_c(codon)) + rtt[24:]
+                new_rtt = rtt[:-4] + _r(_c(codon)) + rtt[-1]
                 if new_rtt not in synony_rtts:
                     synony_rtts.append(new_rtt)
 
             codon = find_synony_codon(upstream[1])
             if codon is not None:
-                new_rtt = rtt[:21] + _r(_c(codon)) + rtt[24:]
+                new_rtt = rtt[:-4] + _r(_c(codon)) + rtt[-1]
                 if new_rtt not in synony_rtts:
                     synony_rtts.append(new_rtt)
 
@@ -901,7 +897,7 @@ def _get_synony_rtt(seq: str, sseq: str, rtt: str, frame: int, strand: str, spli
             rtt_ = _overlap(seq, sseq, _r(_c(rtt))) # revese complement of overlap
             for _ in range(len(synony_rtts)):
                 synony = _r(_c(synony_rtts[count]))
-                if seq.index(_r(_c(rtt))) + 25 > (seq.index(sseq) + len(sseq)):  # RTT hangs over end of sseq
+                if seq.index(_r(_c(rtt))) + len(rtt) > (seq.index(sseq) + len(sseq)):  # RTT hangs over end of sseq
                     index_rtt_in_sseq = len(rtt_)
                     synony_overlap = synony[:index_rtt_in_sseq]
                     pos = get_edit_position(sseq, synony_overlap, sseq.rfind(rtt_))
@@ -929,7 +925,7 @@ def _get_synony_rtt(seq: str, sseq: str, rtt: str, frame: int, strand: str, spli
             rtt_ = _overlap(seq, sseq, _r(_c(rtt))) # revese complement of overlap
             for _ in range(len(synony_rtts)):
                 synony = _r(_c(synony_rtts[count]))
-                if seq.index(_r(_c(rtt))) + 25 > (seq.index(sseq) + len(sseq)):  # RTT hangs over end of sseq
+                if seq.index(_r(_c(rtt))) + len(rtt) > (seq.index(sseq) + len(sseq)):  # RTT hangs over end of sseq
                     index_rtt_in_sseq = len(rtt_)
                     synony_overlap = synony[:index_rtt_in_sseq]
                     pos = get_edit_position(sseq, synony_overlap, sseq.rfind(rtt_))
@@ -964,19 +960,19 @@ def _get_synony_rtt(seq: str, sseq: str, rtt: str, frame: int, strand: str, spli
             # NN(C cN)N NN
             codon = find_synony_codon(codons_rtt[-2], reverse_order=1, right_restrict=2)
             if codon is not None:
-                new_rtt = rtt[:20] + codon + rtt[23:]
+                new_rtt = rtt[:-5] + codon + rtt[-2:]
                 synony_rtts.append(new_rtt)
 
             # NN(c CN)N NN
             codon = find_synony_codon(codons_rtt[-3], reverse_order=1, left_restrict=2)
             if codon is not None:
-                new_rtt = rtt[:17] + codon + rtt[20:]
+                new_rtt = rtt[:-8] + codon + rtt[-5:]
                 synony_rtts.append(new_rtt)
 
             # NN(C Cn)n NN
             codon = find_synony_codon(codons_rtt[-2], reverse_order=1, left_restrict=1)
             if codon is not None:
-                new_rtt = rtt[:20] + codon + rtt[23:]
+                new_rtt = rtt[:-5] + codon + rtt[-2:]
                 synony_rtts.append(new_rtt)
 
             # NN(C CN)N nn
@@ -990,7 +986,7 @@ def _get_synony_rtt(seq: str, sseq: str, rtt: str, frame: int, strand: str, spli
             rtt_ = _overlap(seq, sseq, rtt)
             for _ in range(len(synony_rtts)):
                 synony = synony_rtts[count]   
-                if seq.index(rtt) + 25 > (seq.index(sseq) + len(sseq)):  # RTT hangs over end of sseq
+                if seq.index(rtt) + len(rtt) > (seq.index(sseq) + len(sseq)):  # RTT hangs over end of sseq
                     index_rtt_in_sseq = len(rtt_)
                     pos = get_edit_position(sseq, synony[:index_rtt_in_sseq], sseq.index(rtt_))
                 else:
@@ -1007,7 +1003,7 @@ def _get_synony_rtt(seq: str, sseq: str, rtt: str, frame: int, strand: str, spli
             while len(synony_rtts) < 2:
                 codon = find_synony_codon(codons_rtt[-4-i], reverse_order=1)
                 if codon is not None:
-                    new_rtt = rtt[:14-3*i] + codon + rtt[17-3*i:]
+                    new_rtt = rtt[:-11-3*i] + codon + rtt[-8-3*i:]
                     synony_rtts.append(new_rtt)
                 i += 1
 
@@ -1016,7 +1012,7 @@ def _get_synony_rtt(seq: str, sseq: str, rtt: str, frame: int, strand: str, spli
             rtt_ = _overlap(seq, sseq, rtt)
             for _ in range(len(synony_rtts)):
                 synony = synony_rtts[count]   
-                if seq.index(rtt) + 25 > (seq.index(sseq) + len(sseq)):  # RTT hangs over end of sseq
+                if seq.index(rtt) + len(rtt) > (seq.index(sseq) + len(sseq)):  # RTT hangs over end of sseq
                     index_rtt_in_sseq = len(rtt_)
                     pos = get_edit_position(sseq, synony[:index_rtt_in_sseq], sseq.index(rtt_))
                 else:
@@ -1058,7 +1054,7 @@ def _get_synony_rtt(seq: str, sseq: str, rtt: str, frame: int, strand: str, spli
             rtt_ = _overlap(seq, sseq, rtt)
             for _ in range(len(synony_rtts)):
                 synony = synony_rtts[count]   
-                if seq.index(rtt) + 25 > (seq.index(sseq) + len(sseq)):  # RTT hangs over end of sseq
+                if seq.index(rtt) + len(rtt) > (seq.index(sseq) + len(sseq)):  # RTT hangs over end of sseq
                     index_rtt_in_sseq = len(rtt_)
                     pos = get_edit_position(sseq, synony[:index_rtt_in_sseq], sseq.index(rtt_))
                 else:
@@ -1075,7 +1071,7 @@ def _get_synony_rtt(seq: str, sseq: str, rtt: str, frame: int, strand: str, spli
             while len(synony_rtts) < 4:
                 codon = find_synony_codon(codons_rtt[-3-i])
                 if codon is not None:
-                    new_rtt = rtt[:16-3*i] + codon + rtt[19-3*i:]
+                    new_rtt = rtt[:-9-3*i] + codon + rtt[-6-3*i:]
                     if new_rtt not in synony_rtts:
                         synony_rtts.append(new_rtt)
                 i += 1
@@ -1085,7 +1081,7 @@ def _get_synony_rtt(seq: str, sseq: str, rtt: str, frame: int, strand: str, spli
             rtt_ = _overlap(seq, sseq, rtt)
             for _ in range(len(synony_rtts)):
                 synony = synony_rtts[count]   
-                if seq.index(rtt) + 25 > (seq.index(sseq) + len(sseq)):  # RTT hangs over end of sseq
+                if seq.index(rtt) + len(rtt) > (seq.index(sseq) + len(sseq)):  # RTT hangs over end of sseq
                     index_rtt_in_sseq = len(rtt_)
                     pos = get_edit_position(sseq, synony[:index_rtt_in_sseq], sseq.index(rtt_))
                 else:
@@ -1104,33 +1100,33 @@ def _get_synony_rtt(seq: str, sseq: str, rtt: str, frame: int, strand: str, spli
             # 5'-N(Cc N)NN N-3'
             codon = find_synony_codon(codons_rtt[-3], left_restrict=2)
             if codon is not None:
-                new_rtt = rtt[:18] + codon + rtt[21:]
+                new_rtt = rtt[:-7] + codon + rtt[-4:]
                 synony_rtts.append(new_rtt)
 
             # 5'-N(cc N)NN N-3'
             codon = find_synony_codon(codons_rtt[-3], left_restrict=1)
             if codon is not None:
-                new_rtt = rtt[:18] + codon + rtt[21:]
+                new_rtt = rtt[:-7] + codon + rtt[-4:]
                 if new_rtt not in synony_rtts:
                     synony_rtts.append(new_rtt)
 
             # 5'-N(CC n)NN N-3'
             codon = find_synony_codon(codons_rtt[-2], right_restrict=2)
             if codon is not None:
-                new_rtt = rtt[:21] + codon + rtt[24:]
+                new_rtt = rtt[:-4] + codon + rtt[-1]
                 synony_rtts.append(new_rtt)
 
             # 5'-N(CC N)Nn N-3'
             codon = find_synony_codon(codons_rtt[-2], left_restrict=2)
             if codon is not None:
-                new_rtt = rtt[:21] + codon + rtt[24:]
+                new_rtt = rtt[:-4] + codon + rtt[-1]
                 if new_rtt not in synony_rtts:
                     synony_rtts.append(new_rtt)
 
             # 5'-N(CC N)nn N-3'
             codon = find_synony_codon(codons_rtt[-2], left_restrict=1)
             if codon is not None:
-                new_rtt = rtt[:21] + codon + rtt[24:]
+                new_rtt = rtt[:-4] + codon + rtt[-1]
                 if new_rtt not in synony_rtts:
                     synony_rtts.append(new_rtt)
 
@@ -1144,7 +1140,7 @@ def _get_synony_rtt(seq: str, sseq: str, rtt: str, frame: int, strand: str, spli
             # downstream of PAM
             codon = find_synony_codon(codons_rtt[-3])
             if codon is not None:
-                new_rtt = rtt[:18] + codon + rtt[21:]
+                new_rtt = rtt[:-7] + codon + rtt[-4:]
                 if new_rtt not in synony_rtts:
                     synony_rtts.append(new_rtt)
 
@@ -1155,7 +1151,7 @@ def _get_synony_rtt(seq: str, sseq: str, rtt: str, frame: int, strand: str, spli
             index_rtt_in_sseq = rtt.index(rtt_)
             for _ in range(len(synony_rtts)):
                 synony = synony_rtts[count]   
-                if seq.index(rtt) + 25 > (seq.index(sseq) + len(sseq)):  # RTT hangs over end of sseq
+                if seq.index(rtt) + len(rtt) > (seq.index(sseq) + len(sseq)):  # RTT hangs over end of sseq
                     pos = get_edit_position(sseq, synony[:index_rtt_in_sseq], sseq.index(rtt_))
                 else:
                     pos = get_edit_position(sseq, synony[index_rtt_in_sseq:], sseq.index(rtt_))
@@ -1170,7 +1166,7 @@ def _get_synony_rtt(seq: str, sseq: str, rtt: str, frame: int, strand: str, spli
             while len(synony_rtts) < 4:
                 codon = find_synony_codon(codons_rtt[-4-i])
                 if codon is not None:
-                    new_rtt = rtt[:15-3*i] + codon + rtt[18-3*i:]
+                    new_rtt = rtt[:-10-3*i] + codon + rtt[-7-3*i:]
                     if new_rtt not in synony_rtts:
                         synony_rtts.append(new_rtt)
                 i += 1
@@ -1181,7 +1177,7 @@ def _get_synony_rtt(seq: str, sseq: str, rtt: str, frame: int, strand: str, spli
             index_rtt_in_sseq = rtt.index(rtt_)
             for _ in range(len(synony_rtts)):
                 synony = synony_rtts[count]   
-                if seq.index(rtt) + 25 > (seq.index(sseq) + len(sseq)):  # RTT hangs over end of sseq
+                if seq.index(rtt) + len(rtt) > (seq.index(sseq) + len(sseq)):  # RTT hangs over end of sseq
                     pos = get_edit_position(sseq, synony[:index_rtt_in_sseq], sseq.index(rtt_))
                 else:
                     pos = get_edit_position(sseq, synony[index_rtt_in_sseq:], sseq.index(rtt_))
@@ -1273,10 +1269,12 @@ def run_synony(seq: str, sseq: str, frame: int, df, HA, splice):
 
     new_rows_df.drop('Edited DNA Sequence', axis=1, inplace=True)
 
-    new_rows_df['Complete epegRNA'] = new_rows_df['Spacer'] + new_rows_df['Filler'] + new_rows_df['RTTs'] + new_rows_df['PBS']
+    
     if HA:
+        new_rows_df['Complete epegRNA'] = new_rows_df['LHA'] + new_rows_df['Spacer'] + new_rows_df['Filler'] + new_rows_df['RTTs'] + new_rows_df['PBS'] + new_rows_df['RHA']
         new_rows_df['Complete epegRNA (SF)'] = new_rows_df['LHA'] + new_rows_df['Spacer'] + SF + new_rows_df['RTTs'] + new_rows_df['PBS'] + new_rows_df['RHA']
     else:
+        new_rows_df['Complete epegRNA'] = new_rows_df['Spacer'] + new_rows_df['Filler'] + new_rows_df['RTTs'] + new_rows_df['PBS']
         new_rows_df['Complete epegRNA (SF)'] = new_rows_df['Spacer'] + SF + new_rows_df['RTTs'] + new_rows_df['PBS']
 
     new_rows_df['Length (bp)'] = new_rows_df['Complete epegRNA'].apply(lambda x: len(x))
@@ -1306,8 +1304,9 @@ if __name__ == '__main__':
 
     # run_synony(npc_seq, npc_sseq, 2, libs[1], HA=False, splice=splice).to_csv('./lib/synony_npc.csv')
 
-    # syn = _get_synony_rtt(npc_seq, npc_sseq, 'TTGACACCCAGGATTCTTTCCTCAG', 2, '-', splice)
-    # print(syn)
+    splice = []
+    syn = _get_synony_rtt(npc_seq, npc_sseq, 'TTGACACCCAGGATTCTTTCCTCAG', 2, '-', splice)
+    print(syn)
 
     # rtts = _find_rtts(seq=npc_seq, sseq=npc_sseq, rtts=['TCCTGGGTGTCAAGAGAGTCCAGGT'], 
     #                  frame=2, syn=False, strand='+', splice=splice).values()
