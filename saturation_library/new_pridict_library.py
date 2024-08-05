@@ -2,7 +2,7 @@ import random
 import pandas as pd
 from Bio.Seq import Seq
 from model_pred import pred
-from main import process_row, _get_control_rtt, SF, fivep_homo, threep_homo, _get_synony_rtt, _random_filler, get_preserving_rtt, _c, get_edit_position
+from main import SF, fivep_homo, threep_homo, _get_control_rtt, _get_synony_rtt, _random_filler, get_preserving_rtt, _c, get_edit_position
 
 def rc(dna):
     complement = {'A': 'T', 'T': 'A', 'C': 'G', 'G': 'C', 'a': 't', 't': 'a', 'c': 'g', 'g': 'c'}
@@ -40,12 +40,12 @@ def generate_strings(seq, satArea):
 
 
 def run_pridict_lib(seq, sseq):
-    """Returns PRIDICT2.0 based saturation library with variable 3' extension structure
+    """Returns PRIDICT2.0 based saturation library (with variable 3' extension structure)
 
     Sorted by PAM number (spacer)
     """
 
-    def sort_result(seq, unsorted_rs):
+    def sort_result(unsorted_rs):
         # unsorted_rs = pd.read_csv('./npc_result.csv', index_col=False)
         pos_df = unsorted_rs[unsorted_rs['Strand']=='(+)'].reset_index(drop=True)
         neg_df = unsorted_rs[unsorted_rs['Strand']=='(-)'].reset_index(drop=True)
@@ -112,17 +112,45 @@ def run_pridict_lib(seq, sseq):
             dfs.append(df)
 
     unsorted_lib = pd.concat(dfs, ignore_index=True)
-    sorted_lib = sort_result(seq, unsorted_lib)
+    sorted_lib = sort_result(unsorted_lib)
 
     return sorted_lib
 
 
 def run_pridict_library_synony(seq, sseq, frame, HA, splice):
-    """Returns PRIDICT2.0 based saturation library with variable 3' extension structure containing 
+    """Returns PRIDICT2.0 based saturation library (with variable 3' extension structure) containing 
     silent mutation installing RTTs
 
     Sorted by PAM number (spacer)
     """
+
+    def get_synony_reference(rtt, wt_rtt, strand):
+        """Returns reference sequence for PRIDICT2.0 based synony saturation library
+        """
+        if strand == '+':
+            rtt = rc(rtt)
+
+        start = seq.find(wt_rtt)
+
+        diff = []
+        diff.append(seq[:start])
+        if len(rtt) == len(wt_rtt): # not 1bp del ctl
+            for i in range(len(rtt)):
+                if seq[start + i] != rtt[i]:
+                    diff.append(rtt[i].lower())
+                else:
+                    diff.append(seq[start + i])
+
+            diff.append(seq[start+len(rtt):])
+            return ''.join(diff)
+        else:
+            del_idx = int(len(wt_rtt)/2)
+            if strand == '+':
+                return seq[:start+len(wt_rtt)-9-1] + '-' + seq[start+len(wt_rtt)-9:]
+            else:
+                return seq[:start+del_idx] + '-' + seq[start+del_idx+1:]
+
+
     # df = run_pridict_lib(seq, sseq)
     df = pd.read_csv('./saturation_library/npc_result.csv')
 
@@ -151,7 +179,7 @@ def run_pridict_library_synony(seq, sseq, frame, HA, splice):
         row_syn['Complete epegRNA'] = [fivep_homo + row['Spacer'] + 'GTTTCGAGACG' + _random_filler() + 'CGTCTCGGTGC' + row['RTTs'] + row['PBS'] + threep_homo]
         row_syn['Complete epegRNA (SF)'] = [fivep_homo + row['Spacer'] + SF + row['RTTs'] + row['PBS'] + threep_homo]
         row_syn['Syn. Mutation Position'] = 42-get_edit_position(row_syn['RTTs'], row['RTTs'].upper())
-        # row['Reference Sequence'] = process_row(row, seq, wt_rtt)
+        row_syn['Reference Sequence'] = get_synony_reference(row_syn['RTTs'].upper(), wt_rtt, row['Strand'][1])
 
         rows.append(row_syn)
 
@@ -161,15 +189,15 @@ def run_pridict_library_synony(seq, sseq, frame, HA, splice):
     groups = []
     for i, group in df.groupby('PAM No.'):
         new_row_stop = group.loc[group['PRIDICT2.0 Score'].idxmax()].copy()
-        new_row_stop['RTTs'] = _get_control_rtt(seq, sseq, wt_rtts[i], frame, new_row_stop['Strand'][1], True, splice)
+        new_row_stop['RTTs'] = _get_control_rtt(seq, sseq, wt_rtts[i-1], frame, new_row_stop['Strand'][1], True, splice)
         new_row_stop['Filler'] = 'GTTTCGAGACG' + _random_filler() + 'CGTCTCGGTGC'
-        # new_row_stop['Reference Sequence'] = process_row(new_row_stop, seq, wt_rtt)
+        new_row_stop['Reference Sequence'] = get_synony_reference(new_row_stop, seq, wt_rtt)
 
         new_row_del = group.loc[group['PRIDICT2.0 Score'].idxmax()].copy()
-        del_idx = int(len(wt_rtts[i])/2)
-        new_row_del['RTTs'] = wt_rtts[i][:del_idx] + wt_rtts[i][del_idx+1:]
+        del_idx = int(len(wt_rtts[i-1])/2)
+        new_row_del['RTTs'] = wt_rtts[i-1][:del_idx] + wt_rtts[i-1][del_idx+1:]
         new_row_del['Filler'] = 'GTTTCGAGACG' + _random_filler() + 'CGTCTCGGTGC'
-        # new_row_del['Reference Sequence'] = process_row(new_row_del, seq, wt_rtt)
+        new_row_del['Reference Sequence'] = get_synony_reference(new_row_del, seq, wt_rtt)
 
         group_ = pd.concat([group, pd.DataFrame([new_row_stop, new_row_del])], ignore_index=True)
         groups.append(group_)
@@ -187,6 +215,7 @@ def run_pridict_library_synony(seq, sseq, frame, HA, splice):
     new_rows_df['Length (bp) (SF)'] = new_rows_df['Complete epegRNA (SF)'].apply(lambda x: len(x))
 
     return new_rows_df
+
 
 def verify_spacer_in_seq(seq):
     df = pd.read_csv('./saturation_library/npc_result.csv')
@@ -208,10 +237,10 @@ def verify_spacer_in_seq(seq):
         
 
 if __name__=='__main__':
-    # TODO: How to get ref seq in synony lib
     npc_seq = 'TACAGCTGGGTCTGACCTCTGAGTCCAGGGTCAGGTGATTTTGCTTAGCCTCAAGTGCTCAGATTCTGCTGATATTTTGCAAGACCTGGACTCTCTTGACACCCAGGATTCTTTCCTCAGGGGACATGCTGCCTATAGTTCTGCAGTTAACATCCTCCTTGGCCATGGCACCAGGGTCGGAGCCACGTACTTCATGACCTACCACACCGTGCTGCAGACCTCTGCTGACTTTATTGACGCTCTGAAGAAAGCCCGACTTATAGCCAGTAATGTCACCGAAACCATGGGCATTAACGGCAGTGCCTACCGAGTATTTCCTTACAGGTAAAGCCTGCCCTTTTTCAATGGGGTTTACCCAGCAAAGGGCCTACACTGGGTGGGAGTGGGGAGGGTTCCCTTGGCAAGATGCTGATTTTCAGGTTGGGTTCTGGCCCCTGCTCCATT'
     npc_sseq = 'ACTTA'
 
     # run_pridict_library_synony(npc_seq, npc_sseq).to_csv('./saturation_library/npc_result.csv', index=False)
-    run_pridict_library_synony(npc_seq, npc_sseq, frame=2, HA=True, splice=[]).to_csv('./saturation_library/synony_npc_result_wctls.csv', index=False)
+    run_pridict_library_synony(npc_seq, npc_sseq, frame=2, HA=False, splice=[]).to_csv('./saturation_library/synony_npc_result.csv', index=False)
+    
     
