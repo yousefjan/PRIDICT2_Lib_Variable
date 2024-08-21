@@ -1,4 +1,3 @@
-# from peglit import pegLIT
 import subprocess
 import os
 import time
@@ -10,25 +9,27 @@ tevopreQ1 = "CGCGGTTCTATCTAGTTACGCGTTAAACCAACTAGAA"
 tevopreQ1_ori = 'cgcggttctatctagttacgcgttaaaccaactagaatttttttaagcttgggccgctcgaggtacctctctacatatgacatgtgagcaaaaggccagcaaaaggccaggaaccgtaaaaaggccgcgttgctggcgtttttccataggctccgcccccctgacgagcatcacaaaaatcgacgctcaagtcagaggt'
 
 
-# def pl(spacer, rtt, pbs):
+def pred(wts='', batch=False):
+    if batch is True:
+        command = [
+            'python', '/Users/Dong-Kyu Kim/PRIDICT2_library/pridict2_pegRNA_design.py', 'batch',  # CHANGE DIRECTORY NAME HERE
+            '--input-fname', 'batch_template.csv',
+            '--output-fname', 'batchseqs'
+        ]
 
-#     linkers = pegLIT(seq_spacer=spacer, seq_scaffold=pe_scaffold, seq_template=rtt,
-#                             seq_pbs=pbs, seq_motif=tevopreQ1)
+        csv_file_path = 'batchseqs'
 
-#     return linkers[0]
+    else:
+        if len(wts) < 203:
+            return 'not available - wts+edit too short'
 
+        command = [
+            'python', '/Users/Dong-Kyu Kim/PRIDICT2_library/pridict2_pegRNA_design.py', 'manual',  # CHANGE DIRECTORY NAME HERE
+            '--sequence-name', 'seq',
+            '--sequence', wts
+        ]
 
-def pred(wts):
-    if len(wts) < 203:
-        return 'not available - wts+edit too short'
-
-    command = [
-        'python', '/Users/Junhe Yang/PRIDICT2/pridict2_pegRNA_design.py', 'manual',
-        '--sequence-name', 'seq',
-        '--sequence', wts
-    ]
-
-    csv_file_path = '/Users/Junhe Yang/PRIDICT2/predictions/seq_pegRNA_Pridict_full.csv'
+        csv_file_path = '/Users/Dong-Kyu Kim/PRIDICT2_library/predictions/seq_pegRNA_Pridict_full.csv'  # CHANGE DIRECTORY NAME HERE
 
     subprocess.run(command, check=True)
 
@@ -37,29 +38,6 @@ def pred(wts):
     
     return None
 
-    # pridict2_output = pd.read_csv(csv_file_path)
-
-    # os.remove(csv_file_path)
-
-    # group = pridict2_output.sort_values('PRIDICT2_0_editing_Score_deep_HEK', ascending=False).drop_duplicates('Spacer-Sequence')
-    # group.to_csv("group_df.csv")
-
-
-    # spacer = pridict2_output['Spacer-Sequence'].values[0]
-    # RTT = pridict2_output['RTrevcomp'].values[0]
-    # PBS = pridict2_output['PBSrevcomp'].values[0]
-
-    # score=pridict2_output['PRIDICT2_0_editing_Score_deep_HEK'].values[0]
-
-    # if link:
-    #     linker = pl(spacer, RTT, PBS)
-    # else:
-    #     linker = ''
-
-    # if block:
-    #     return 
-    # else:
-    #     return 
 
 
 def manual_pred(wts, rtt, pbs):
