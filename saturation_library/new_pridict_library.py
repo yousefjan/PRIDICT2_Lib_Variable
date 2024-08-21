@@ -2,6 +2,7 @@ import random
 import pandas as pd
 from Bio.Seq import Seq
 from model_pred import pred
+import os
 from main import SF, fivep_homo, threep_homo, _get_control_rtt, _get_synony_rtt, _random_filler, get_preserving_rtt, _c, get_edit_position
 
 def rc(dna):
@@ -38,6 +39,8 @@ def generate_strings(seq, satArea):
     df = pd.DataFrame({'editseq': allSeq})
     df['sequence_name'] = 'seq' + df.index.astype(str)
     df.to_csv('./input/batch_template.csv')
+
+    return allSeq
  
 
 
@@ -79,42 +82,39 @@ def run_pridict_lib(seq, sseq):
         
         return sorted_rs
     
-    generate_strings(seq, sseq)
-    pred(batch=True)
-    # output = pd.read_csv('./saturation_library/batchseqs.csv')
+    pridict_input_sequences = generate_strings(seq, sseq)
+    dfs = []
+    for i, input in enumerate(pridict_input_sequences):
+        pred(input)
+        output = pd.read_csv('./predictions/seq_pegRNA_Pridict_full.csv')
+        output = output[(output['RTrevcomp'].str.len() < 40) & (output['PBSrevcomp'].str.len() < 15) & (output['PBSrevcomp'].str.len() > 7)]
+        max_scores = output.loc[output.groupby('Spacer-Sequence')['PRIDICT2_0_editing_Score_deep_HEK'].idxmax()]
+        top_spacers = max_scores.sort_values(by='PRIDICT2_0_editing_Score_deep_HEK', ascending=False).head(4)
+        for j in range(len(top_spacers.index)):
+            df = pd.DataFrame()
+            df['peg No. (within edit)'] = [j+1]
+            df['Edit Position (sat. area)'] = [i // 3 +1]
+            df['PAM'] = [_c(top_spacers.iloc[j]['RTrevcomp'][-4]) + 'GG']
+            df['Strand'] = ['(+)' if top_spacers.iloc[j]['Target-Strand'] == 'Fw' else '(-)']
+            df['Edit'] = [f'{top_spacers.iloc[j]['OriginalAllele']}>{top_spacers.iloc[j]['EditedAllele']}']
+            df['LHA'] = [fivep_homo]
+            df['Spacer'] = [top_spacers.iloc[j]['Spacer-Sequence']]
+            df['RTTs'] = [top_spacers.iloc[j]['RTrevcomp']]
+            df['PBS'] = [top_spacers.iloc[j]['PBSrevcomp']]
+            df['RHA'] = [threep_homo]
+            df['Filler'] = 'GTTTCGAGACG' + _random_filler() + 'CGTCTCGGTGC'
+            df['Complete epegRNA'] = [fivep_homo + top_spacers.iloc[j]['Spacer-Sequence'] + df['Filler'] + top_spacers.iloc[j]['RTrevcomp'] + top_spacers.iloc[j]['PBSrevcomp'] + threep_homo]
+            df['Length (bp)'] = df['Complete epegRNA'].str.len()
+            df['Complete epegRNA (SF)'] = [fivep_homo + top_spacers.iloc[j]['pegRNA'] + threep_homo] # Uses scaffold
+            df['Length (bp) (SF)'] = df['Complete epegRNA (SF)'].str.len()
+            df['Reference Sequence'] = [top_spacers.iloc[j]['wide_mutated_target']]
+            df['PRIDICT2.0 Score'] = [top_spacers.iloc[j]['PRIDICT2_0_editing_Score_deep_HEK']]
+            dfs.append(df)
 
-    # output = output[(output['RTrevcomp'].str.len() < 40) & (output['PBSrevcomp'].str.len() < 15) & (output['PBSrevcomp'].str.len() > 7)]
-    # max_scores = output.loc[output.groupby('Spacer-Sequence')['PRIDICT2_0_editing_Score_deep_HEK'].idxmax()]
-    # top_spacers = max_scores.sort_values(by='PRIDICT2_0_editing_Score_deep_HEK', ascending=False).head(4)
-    # dfs = []
-    # for j in range(len(top_spacers.index)):
-    #     df = pd.DataFrame()
-    #     df['peg No. (within edit)'] = [j+1]
-    #     df['Edit Position (sat. area)'] = [i // 3 +1]
-    #     df['PAM'] = [_c(top_spacers.iloc[j]['RTrevcomp'][-4]) + 'GG']
-    #     df['Strand'] = ['(+)' if top_spacers.iloc[j]['Target-Strand'] == 'Fw' else '(-)']
-    #     df['Edit'] = [f'{top_spacers.iloc[j]['OriginalAllele']}>{top_spacers.iloc[j]['EditedAllele']}']
-    #     df['LHA'] = [fivep_homo]
-    #     df['Spacer'] = [top_spacers.iloc[j]['Spacer-Sequence']]
-    #     df['RTTs'] = [top_spacers.iloc[j]['RTrevcomp']]
-    #     df['PBS'] = [top_spacers.iloc[j]['PBSrevcomp']]
-    #     df['RHA'] = [threep_homo]
-    #     df['Filler'] = 'GTTTCGAGACG' + _random_filler() + 'CGTCTCGGTGC'
+    unsorted_lib = pd.concat(dfs, ignore_index=True)
+    sorted_lib = sort_result(unsorted_lib)
 
-    #     df['Complete epegRNA'] = [fivep_homo + top_spacers.iloc[j]['Spacer-Sequence'] + df['Filler'] + top_spacers.iloc[j]['RTrevcomp'] + top_spacers.iloc[j]['PBSrevcomp'] + threep_homo]
-    #     df['Length (bp)'] = df['Complete epegRNA'].str.len()
-
-    #     df['Complete epegRNA (SF)'] = [fivep_homo + top_spacers.iloc[j]['epegRNA'] + threep_homo] # Uses scaffold
-    #     df['Length (bp) (SF)'] = df['Complete epegRNA (SF)'].str.len()
-
-    #     df['Reference Sequence'] = [top_spacers.iloc[j]['wide_mutated_target']]
-    #     df['PRIDICT2.0 Score'] = [top_spacers.iloc[j]['PRIDICT2_0_editing_Score_deep_HEK']]
-    #     dfs.append(df)
-
-    # unsorted_lib = pd.concat(dfs, ignore_index=True)
-    # sorted_lib = sort_result(unsorted_lib)
-
-    # return sorted_lib
+    return sorted_lib
 
 
 def run_pridict_library_synony(seq, sseq, frame, HA, splice):
