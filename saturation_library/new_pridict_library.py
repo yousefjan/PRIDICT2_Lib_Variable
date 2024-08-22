@@ -13,6 +13,7 @@ def rc(dna):
     complement = {'A': 'T', 'T': 'A', 'C': 'G', 'G': 'C', 'a': 't', 't': 'a', 'c': 'g', 'g': 'c'}
     return ''.join(complement[base] for base in reversed(dna))
 
+
 def get_wt_rtt(seq, rtt): # pass rc of rtt for (+) PAM
     for i, base in enumerate(rtt):
         bases = ['A', 'T', 'G', 'C']
@@ -72,7 +73,6 @@ def get_reference(seq, rtt, wt_rtt, strand):
             return seq[:start+len(wt_rtt)-9-1] + '-' + seq[start+len(wt_rtt)-9:]
         else:
             return seq[:start+del_idx] + '-' + seq[start+del_idx+1:]
-
 
 
 def run_pridict_lib(seq, sseq, frame, HA):
@@ -269,25 +269,6 @@ def run_pridict_library_synony(seq, sseq, frame, HA, splice):
     new_rows_df.to_csv('./saturation_library/lib/synony_full.csv', index=False)
 
 
-def verify_spacer_in_seq(seq):
-    df = pd.read_csv('./saturation_library/npc_result.csv')
-    no_match = {}
-
-    for _, row in df.iterrows():
-        spacer_without_g = row['Spacer'][1:]
-        if spacer_without_g not in seq:
-            if str(Seq(spacer_without_g).reverse_complement()) not in seq:
-                if row['Edit Position (sat. area)'] not in no_match:
-                    no_match[row['Edit Position (sat. area)']] = [(row['Edit'], row['peg No. (within edit)'])]
-                else:
-                    no_match[row['Edit Position (sat. area)']].append((row['Edit'], row['peg No. (within edit)']))
-    
-    if not no_match:
-        print('All spacers from PRIDICT2.0 output are in seq!')
-    else:
-        print(no_match)
-        
-
 def _make_df_freq_pridict(seq, lib):
     lib['RTTs'] = lib['RTTs'].apply(lambda x: get_wt_rtt(seq, x))
     rtts = lib['RTTs'].to_list()
@@ -360,16 +341,16 @@ if __name__=='__main__':
 
     libs = run_pridict_lib(seq_, sseq_, frame, HA=False)
 
-    libs[0].to_csv('./saturation_library/lib/full.csv', index=False)
-    libs[1].to_csv('./saturation_library/lib/no_ctl.csv', index=False)
-    libs[2].to_csv('./saturation_library/lib/only_ctl.csv', index=False)
+    libs[0].to_csv('./saturation_library/library/full.csv', index=False)
+    libs[1].to_csv('./saturation_library/library/no_ctl.csv', index=False)
+    libs[2].to_csv('./saturation_library/library/only_ctl.csv', index=False)
 
     run_pridict_library_synony(seq_, sseq_, frame, HA=False, splice=splice)
 
     # Generates frequency table and plot
-    lib = pd.read_csv('./saturation_library/lib/no_ctl.csv')
+    lib = pd.read_csv('./saturation_library/library/no_ctl.csv')
 
     run_freq_plot(seq_, sseq_, lib.copy())
-    run_freq_table(seq_, sseq_, lib).to_csv('./saturation_library/lib/freq_table.csv', index=False)
+    run_freq_table(seq_, sseq_, lib).to_csv('./saturation_library/library/freq_table.csv', index=False)
 
     # -- Check results in 'lib' folder --
