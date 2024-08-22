@@ -165,7 +165,7 @@ def _get_control_rtt(seq, sseq, rtt, frame, strand, syn, splice) -> str:
             rtt_start = 1
 
         if syn:
-            rtt_ = _r(_c(_get_synony_rtt(seq, sseq, rtt, frame+1, strand, splice)[0])) ####
+            rtt_ = _r(_c(_get_synony_rtt(seq, sseq, rtt, frame+1, strand, splice)[0]))
 
         codons_rtt = split_into_codons(rtt_, rtt_start)
         codons_rtt[3 if len(codons_rtt[0]) < 3 else 2] = 'TGA'
