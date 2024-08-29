@@ -228,7 +228,7 @@ def run_pridict_library_synony(seq, sseq, frame, HA, splice):
 
         row_syn['Complete epegRNA'] = [fivep_homo + row['Spacer'] + 'GTTTCGAGACG' + _random_filler() + 'CGTCTCGGTGC' + row['RTTs'] + row['PBS'] + threep_homo]
         row_syn['Complete epegRNA (SF)'] = [fivep_homo + row['Spacer'] + SF + row['RTTs'] + row['PBS'] + threep_homo]
-        row_syn['Syn. Mutation Position'] = 42-get_edit_position(row_syn['RTTs'], row['RTTs'].upper())
+        row_syn['Syn. Mutation Position'] = 25-get_edit_position(row_syn['RTTs'], row['RTTs'].upper())-3-1
         row_syn['Reference Sequence'] = get_reference(seq, row_syn['RTTs'].upper(), wt_rtt, row['Strand'][1])
         row_syn['Filler'] = 'GTTTCGAGACG' + _random_filler() + 'CGTCTCGGTGC'
 
