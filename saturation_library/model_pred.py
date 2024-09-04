@@ -12,7 +12,7 @@ tevopreQ1_ori = 'cgcggttctatctagttacgcgttaaaccaactagaatttttttaagcttgggccgctcgagg
 def pred(wts='', batch=False):
     if batch is True:
         command = [
-            'python', '/Users/Dong-Kyu Kim/PRIDICT2_library/pridict2_pegRNA_design.py', 'batch',  # CHANGE DIRECTORY NAME HERE
+            'python', '/Users/Dong-Kyu Kim/Desktop/PRIDICT2_Lib_Variable/pridict2_pegRNA_design.py', 'batch',  # CHANGE DIRECTORY NAME HERE
             '--input-fname', 'batch_template.csv',
             '--output-fname', 'batchseqs'
         ]
@@ -24,7 +24,7 @@ def pred(wts='', batch=False):
             return 'not available - wts+edit too short'
 
         command = [
-            'python', '/Users/Dong-Kyu Kim/PRIDICT2_library/pridict2_pegRNA_design.py', 'manual',  # CHANGE DIRECTORY NAME HERE
+            'python', '/Users/Dong-Kyu Kim/Desktop/PRIDICT2_Lib_Variable/pridict2_pegRNA_design.py', 'manual',  # CHANGE DIRECTORY NAME HERE
             '--sequence-name', 'seq',
             '--sequence', wts
         ]

@@ -333,19 +333,20 @@ if __name__=='__main__':
 
     # Set parameters: 
     seq_ = 'TACAGCTGGGTCTGACCTCTGAGTCCAGGGTCAGGTGATTTTGCTTAGCCTCAAGTGCTCAGATTCTGCTGATATTTTGCAAGACCTGGACTCTCTTGACACCCAGGATTCTTTCCTCAGGGGACATGCTGCCTATAGTTCTGCAGTTAACATCCTCCTTGGCCATGGCACCAGGGTCGGAGCCACGTACTTCATGACCTACCACACCGTGCTGCAGACCTCTGCTGACTTTATTGACGCTCTGAAGAAAGCCCGACTTATAGCCAGTAATGTCACCGAAACCATGGGCATTAACGGCAGTGCCTACCGAGTATTTCCTTACAGGTAAAGCCTGCCCTTTTTCAATGGGGTTTACCCAGCAAAGGGCCTACACTGGGTGGGAGTGGGGAGGGTTCCCTTGGCAAGATGCTGATTTTCAGGTTGGGTTCTGGCCCCTGCTCCATT'
-    sseq_ = 'ACTTA'
+    sseq_ = 'ACCCAGGATTCTTTCCTCAGGGGACATGCTGCCTATAGTTCTGCAGTTAACATCCTCCTTGGCCATGGCACCAGGGTCGGAGCCACGTACTTCATGACCTACCACACCGTGCTGCAGACCTCTGCTGACTTTATTGACGCTCTGAAGAAAGCCCGACTTATAGCCAGTAATGTCACCGAAACCATGGGCATTAACGGCAGTGCCTACCGAGTATTTCCTTACAGGTAAAGCCTGCCCTTTTTCA'
     acc = [18, 21]
     don = [223, 231]
     splice = list(range(acc[0] - 1, acc[1])) + list(range(don[0] - 1, don[1]))
     frame = +2
+    homology = True # if you don't want, set to False
 
-    libs = run_pridict_lib(seq_, sseq_, frame, HA=False)
+    libs = run_pridict_lib(seq_, sseq_, frame, HA=homology)
 
     libs[0].to_csv('./saturation_library/library/full.csv', index=False)
     libs[1].to_csv('./saturation_library/library/no_ctl.csv', index=False)
     libs[2].to_csv('./saturation_library/library/only_ctl.csv', index=False)
 
-    run_pridict_library_synony(seq_, sseq_, frame, HA=False, splice=splice)
+    run_pridict_library_synony(seq_, sseq_, frame, HA=homology, splice=splice)
 
     # Generates frequency table and plot
     lib = pd.read_csv('./saturation_library/library/no_ctl.csv')
