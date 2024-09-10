@@ -24,12 +24,12 @@ def pred(wts='', batch=False):
             return 'not available - wts+edit too short'
 
         command = [
-            'python', '/Users/Dong-Kyu Kim/Desktop/PRIDICT2_Lib_Variable/pridict2_pegRNA_design.py', 'manual',  # CHANGE DIRECTORY NAME HERE
+            'python', './pridict2_pegRNA_design.py', 'manual', 
             '--sequence-name', 'seq',
             '--sequence', wts
         ]
 
-        csv_file_path = '/Users/Dong-Kyu Kim/PRIDICT2_library/predictions/seq_pegRNA_Pridict_full.csv'  # CHANGE DIRECTORY NAME HERE
+        csv_file_path = './predictions/seq_pegRNA_Pridict_full.csv' 
 
     subprocess.run(command, check=True)
 

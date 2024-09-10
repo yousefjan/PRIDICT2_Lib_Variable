@@ -125,8 +125,12 @@ def run_pridict_lib(seq, sseq, frame, HA):
             df = pd.DataFrame()
 
             rtt = top_spacers.iloc[j]['RTrevcomp']
-            wt_rtt = get_wt_rtt(seq, rtt)
             strand = '(+)' if top_spacers.iloc[j]['Target-Strand'] == 'Fw' else '(-)'
+            if strand[1] == '-':
+                wt_rtt = get_wt_rtt(seq, rtt)
+            else:
+                wt_rtt = get_wt_rtt(seq, rc(rtt))
+            
 
             df['peg No. (within edit)'] = [j+1]
             df['Edit Position (sat. area)'] = [i // 3 +1]
@@ -148,7 +152,7 @@ def run_pridict_lib(seq, sseq, frame, HA):
 
             df['Length (bp)'] = df['Complete epegRNA'].str.len()
             df['Length (bp) (SF)'] = df['Complete epegRNA (SF)'].str.len()
-            df['Reference Sequence'] = [get_reference(seq, rtt, wt_rtt, strand)]
+            df['Reference Sequence'] = [get_reference(seq, rtt, wt_rtt, strand[1])]
             df['PRIDICT2.0 Score'] = [top_spacers.iloc[j]['PRIDICT2_0_editing_Score_deep_HEK']]
             dfs.append(df)
 
@@ -355,3 +359,5 @@ if __name__=='__main__':
     run_freq_table(seq_, sseq_, lib).to_csv('./saturation_library/library/freq_table.csv', index=False)
 
     # -- Check results in 'lib' folder --
+
+    print(get_wt_rtt(seq_, 'ACCTGGACTCTCTTGACtCCCAGGATTCTTTCCTC'))
