@@ -149,12 +149,8 @@ def _find_rtt(seq, sseq, strand) -> list:
 
 
 def _get_control_rtt(seq, sseq, rtt, frame, strand, syn, splice) -> str:
-    """Returns the stop control RTT corresponding to the WT <rtt>
-    
-    Used in both _find_rtts() and run_synony() via <syn>
-    For synonymous control RTTs, silent mutations not installed in <splice>
-    """
     frame -= 1
+
     if strand == "+":
         rtt_ = _r(_c(rtt))
         idx = (seq.index(rtt_) + 1) % 3
@@ -165,7 +161,9 @@ def _get_control_rtt(seq, sseq, rtt, frame, strand, syn, splice) -> str:
             rtt_start = 1
 
         if syn:
-            rtt_ = _r(_c(_get_synony_rtt(seq, sseq, rtt, frame+1, strand, splice)[0]))
+            rtt_ = _get_synony_rtt(seq, sseq, rtt, frame+1, strand, splice) ####
+            if rtt_:
+                rtt_ = _r(_c(rtt_[0]))
 
         codons_rtt = split_into_codons(rtt_, rtt_start)
         codons_rtt[3 if len(codons_rtt[0]) < 3 else 2] = 'TGA'
@@ -176,6 +174,10 @@ def _get_control_rtt(seq, sseq, rtt, frame, strand, syn, splice) -> str:
 
     else: # strand=="-"
 
+        # if syn and strand=='-': # Get seqs_r handles rc of seq
+        #     seq = _r(_c(seq))
+        #     rtt = _r(_c(rtt))
+
         idx = (seq.index(rtt) + 1) % 3
         idx = 1 if idx == 0 else 0 if idx == 1 else 2
         rtt_start = idx + frame
@@ -184,7 +186,9 @@ def _get_control_rtt(seq, sseq, rtt, frame, strand, syn, splice) -> str:
             rtt_start = 1
 
         if syn:
-            rtt = _get_synony_rtt(seq, sseq, rtt, frame+1, strand, splice)[0] # TODO: Change to get_preserving_rtt
+            rtt_ = _get_synony_rtt(seq, sseq, rtt, frame+1, strand, splice) ####
+            if rtt_:
+                rtt = rtt_[0]
 
         codons_rtt = split_into_codons(rtt, rtt_start)
         codons_rtt[-4 if len(codons_rtt[-1]) < 3 else -3] = 'TGA'
